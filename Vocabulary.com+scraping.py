@@ -103,13 +103,15 @@ class VocabularyScraper(Scraper):
         super(self.__class__,self).__init__(*args,**kwargs)
         
     def preprocess_exs_defs(self):
+        
         webdriver=self.browser
         definitions = list(itertools.chain(*[webdriver.find_elements_by_class_name(name) for name in ["short","long","definition"]]))
         examples = webdriver.find_elements_by_css_selector(".wordPage .example")          
         examples = " #$ ".join(["&{0}& {1}".format(self.find_pos_tag(example.text,term),example.text) for example in examples])
         examples = [example.replace("'",'"') for example in examples]
-        definitions = [definition.replace("'",'"') for definition in definitions]
+        
         definitions = " #$ ".join([definition.text for definition in definitions])
+        definitions = [definition.replace("'",'"') for definition in definitions]
         row = tuple((term,definitions,examples))
         return row
       
