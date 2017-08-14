@@ -174,32 +174,13 @@ string.ascii_lowercase
 
 # In[207]:
 
-import pymysql
-import re
-import pandas.io.sql
 
 
 
-try:
-    conn = pymysql.connect(host='35.198.176.76', user='root', passwd=None, db='mysql', charset='utf8')
-    cur = conn.cursor()
-    
-    queries=["USE definitions",             "INSERT  into terms (term,definitions,examples) VALUES ('sophisticated','very subtly',             'sophisticated work')",             "SELECT * FROM terms"]
-    
-    query = [cur.execute(query) for query in queries]
-   
-    result=(cur.fetchall())
-    conn.commit()
-    #pandas.io.sql.read_sql("USE definitions;",conn)
-          
-finally:
-    cur.close()
-    conn.close()
 
 
-# In[208]:
 
-result
+
 
 
 # In[9]:
