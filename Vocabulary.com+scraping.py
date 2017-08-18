@@ -19,7 +19,6 @@ from selenium.webdriver.support import expected_conditions as EC
 import string
 from selenium.common.exceptions import TimeoutException,StaleElementReferenceException
 import nltk
-from itertools import zip_longest
 import pymysql
 from pymysql import InternalError
 import itertools
