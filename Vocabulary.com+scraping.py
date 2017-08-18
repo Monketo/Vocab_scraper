@@ -219,13 +219,13 @@ class VocabularyScraper(Scraper):
                         
                         self.insert_to_database(row)
                         
-                    except StaleElementReferenceException :
+                  except StaleElementReferenceException :
                         
                         print("Word %s was not loaded into dataset" % term)
                         continue
                         
                         
-                    except InternalError:
+                  except InternalError:
                         print("Trying to handle multiple threading error")
                         self.handle_internal_error()
                         
