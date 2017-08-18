@@ -54,7 +54,7 @@ class Scraper(ABC):
     def get_crawler(self,dynamic):
         crawler = None
         if(dynamic):
-            crawler = PhantomJS("/usr/lib/phantomjs/phantomjs")
+            crawler = PhantomJS()
         return crawler
   
 
