@@ -17,7 +17,7 @@ from pymysql import InternalError
 import itertools
 
 
-# In[85]:
+# In[9]:
 
 from abc import abstractmethod, ABC
 
@@ -57,17 +57,17 @@ class Scraper(ABC):
         cur = self.db_executer
         cur.execute("SELECT definitions,examples FROM terms WHERE term = '{}'".format(term))
         res = cur.fetchall()
-        example_alr= res[0][1]
-        defintions_alr = res[0][0]
-        de
+        examples_alr= res[0][1]
+        definitions_alr = res[0][0]
+        definitions_alr = [defintion.replace("'","`") for defition in definitions_alr]
 
         print("Already in database - ", res)
         if (len(res) > 0):
-            r
+            
             if definition not in res[0][0]:
                 cur.execute(
                     "UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(
-                        res[0][0], definition, res[0][1], example, term))
+                       definitions_alr, definition,examples_alr, example, term))
         else:
             query = "INSERT into terms (term,definitions,examples) VALUES ('{0}','{1}','{2}')".format(term, definition,
                                                                                                       example)
@@ -104,7 +104,7 @@ class Scraper(ABC):
 
 
 
-# In[82]:
+# In[7]:
 
 
 class VocabularyScraper(Scraper):
