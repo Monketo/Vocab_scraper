@@ -72,9 +72,12 @@ class Scraper(ABC):
             cur = self.db_executer
             cur.execute("SELECT definitions,examples FROM terms WHERE term = '{}'".format(term))
             res=cur.fetchall()
+         
+                 
             print("Already in database - ",res)
             if(len(res)>0):
-                cur.execute("UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(res[0][0], definition ,res[0][1],example,term))
+                if  not res[0][0].contains(definition):
+                    cur.execute("UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(res[0][0], definition ,res[0][1],example,term))
             else:
                 query = "INSERT into terms (term,definitions,examples) VALUES ('{0}','{1}','{2}')".format(term,definition,example)
                 cur.execute(query)
@@ -196,17 +199,19 @@ class VocabularyScraper(Scraper):
             words = set(webdriver.find_elements_by_css_selector(".autocomplete .word"))
             clicked = clicked | words
             for word in words:
-                 term = word.get_attribute("innerHTML")
-                 if term not in scraped:
+                 try:
+                    term = word.get_attribute("innerHTML")
+                    
+                     if term not in scraped:
               
-                    word.click()
-                    time.sleep(1)
+                        word.click()
+                        time.sleep(1)
                     
-                    print("Term is ",term)
+                        print("Term is ",term)
                     
                     
-                    scraped.add(term)
-                    try:
+                        scraped.add(term)
+                   
                         
                         row = self.preprocess_exs_defs(term)
                         
