@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[8]:
 
 import selenium
 from bs4 import BeautifulSoup
@@ -11,20 +11,21 @@ from selenium.webdriver import PhantomJS
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from fake_useragent import UserAgent
 import time
+import json
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
-#from selenium.webdriver.common.
 import string
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException,StaleElementReferenceException
 import nltk
 from itertools import zip_longest
 import pymysql
+from pymysql import InternalError
 import itertools
 
 
-# In[2]:
+# In[85]:
 
 from abc import abstractmethod,ABC
 
@@ -41,6 +42,7 @@ class Scraper(ABC):
     
     def connect_to_database(self):
         global conn
+        global cur
         conn = pymysql.connect(host='35.198.176.76', user='root', passwd=None, db='mysql', charset='utf8')
         cur = conn.cursor()
         cur.execute("USE definitions")
@@ -64,72 +66,122 @@ class Scraper(ABC):
     
     def insert_to_database(self,row):
     
-            term,definition,example = row
-            
+            term, definition , example = row
+            if example is None:
+                example=""
+                
             cur = self.db_executer
             cur.execute("SELECT definitions,examples FROM terms WHERE term = '{}'".format(term))
             res=cur.fetchall()
-            print(res)
+            print("Already in database - ",res)
             if(len(res)>0):
-                
-                cur.execute("UPDATE terms SET definitions = '{0} #$ {1}',examples = '{2} #$ {3}'".format(res[0][0], definition ,result[0][1],example))
+                cur.execute("UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(res[0][0], definition ,res[0][1],example,term))
             else:
-                query = "INSERT into terms (term,definitions,example) VALUES ('{0}','{1}','{2}')".format(term,definition,example)
-                print(query)
+                query = "INSERT into terms (term,definitions,examples) VALUES ('{0}','{1}','{2}')".format(term,definition,example)
                 cur.execute(query)
             
             conn.commit()
         
-    def finalize():
+    def finalize(self):
+        cur.close
         conn.close()
     
     def find_pos_tag(self,sentence,needed_word):
+        pattern = re.compile(r""+needed_word+r"e?s?",re.M | re.I)
         tokenizer = nltk.word_tokenize 
         pos_tags = nltk.pos_tag(tokenizer(sentence))
-        needed_tag = [y for x,y in pos_tags if x==needed_word]
-        return needed_tag
+        needed_tag = [y for x,y in pos_tags if len(re.findall(pattern,x))>0]
+        try:
+            needed_tag= needed_tag[0]
+        except IndexError:
+            needed_tag = ""
+        return needed_tag    
+            
         
+    def handle_internal_error(self):
+        cur = self.db_executer
+        queries=["SHOW FULL PROCESSLIST"]
+        [cur.execute(query) for query in queries]
+        results= (cur.fetchall())
+        thread_ids = [result[0] for result in results]
+        queries=["KILL "+thrd_id  for thrd_id in thread_ids]
+        [cur.execute(query) for query in queries]
+        self.db_executer=self.connect_to_database
     
     
     
     
 
 
-# In[8]:
+# In[82]:
 
 class VocabularyScraper(Scraper):
     
     def __init__ (self,*args,**kwargs):
         super(self.__class__,self).__init__(*args,**kwargs)
         
-    def preprocess_exs_defs(self):
-        
+    def preprocess_exs_defs(self,term):
         webdriver=self.browser
-        definitions = list(itertools.chain(*[webdriver.find_elements_by_class_name(name) for name in ["short","long","definition"]]))
-        examples = webdriver.find_elements_by_css_selector(".wordPage .example")          
-        examples = " #$ ".join(["&{0}& {1}".format(self.find_pos_tag(example.text,term),example.text) for example in examples])
-        examples = [example.replace("'",'"') for example in examples]
         
-        definitions = " #$ ".join([definition.text for definition in definitions])
-        definitions = [definition.replace("'",'"') for definition in definitions]
+        term=term.replace("'","`")
+        
+        definitions = list(itertools.chain(*[webdriver.find_elements_by_css_selector(name) for name in [".wordPage .blurb .short",".wordPage .blurb .long",".wordPage .definition h3"]]))
+        
+        examples = webdriver.find_elements_by_css_selector(".wordPage .example") 
+        
+        
+        definitions = self.remove_redund_chars(definitions)
+        examples = self.remove_redund_chars(examples)
+        
+        examples = " &$ ".join(['&%s& %s'%(self.find_pos_tag(example,term),example) for example in examples])
+       
+        definitions = " &$ ".join ([definition for definition in definitions])
+        
+        
         row = tuple((term,definitions,examples))
         return row
-      
     
-    def preparation(self,key):
-        webdriver = self.browser
-        webdriver.get(self.start_link)
+    
+    def remove_redund_chars(self,iterable):
+        
+        if iterable is not None:
+            filtered = [element.text.replace("'",'`') for element in iterable ]
+            return filtered
+          
+    def enter_search_field(self,key):
+        webdriver=self.browser
         search_field = webdriver.find_element_by_id("search")
         search_field.clear()
         search_field.send_keys(key)
+        
         #search_field.send_keys(Keys.ENTER)
         
-        WebDriverWait(webdriver,20).until(EC.presence_of_element_located((By.CLASS_NAME,"entry"))) 
+        
+        
+        WebDriverWait(webdriver,5).until(EC.presence_of_element_located((By.CLASS_NAME,"entry"))) 
         
     
+      
+    
+    def preparation(self,key):
+        found=False
+        while not found:
+            try:
+                webdriver = self.browser
+                webdriver.get(self.start_link)
+                self.enter_search_field(key)
+                found=True
+            except  TimeoutException:
+                print("Exceeded time.. Retrying to get search field")
+       
+    def load_more(self):
+        webdriver= self.browser
+        div = webdriver.find_element_by_class_name("hasmore")
+        webdriver.execute_script("arguments[0].scrollTop += arguments[0].scrollHeight",div)
+    
     def scraping_strategy(self):   
-        
-        self.preparation("a")
+        letter="a"
+        self.preparation(letter)
         scraped = self.temporary_memory
         webdriver = self.browser
         
@@ -138,59 +190,63 @@ class VocabularyScraper(Scraper):
     
         words = set()
         
+        time_started = time.time()
+        
         while(len(clicked  - words)!=0):
             
             words = set(webdriver.find_elements_by_css_selector(".autocomplete .word"))
             clicked = clicked | words
-        
             for word in words:
-                term = word.text
+                 term = word.get_attribute("innerHTML")
                 if term not in scraped:
+              
                     word.click()
-                    print(term)
-                    
-                    scraped.add(term)
-                    webdriver.save_screenshot("test1.png")
-                    row = self.preprocess_exs_defs()
-                    print(row)
-                    self.insert_to_database(row)
                     time.sleep(1)
                     
-                    if(len(scraped)>3):
-                        print(scraped)
-                        break
+                    print("Term is ",term)
+                    
+                    
+                    scraped.add(term)
+                    try:
+                        
+                        row = self.preprocess_exs_defs(term)
+                        
+                        print(row)
+                        
+                        self.insert_to_database(row)
+                        
+                    except StaleElementReferenceException :
+                        
+                        print("Word %s was not loaded into dataset" % term)
+                        continue
+                        
+                        
+                    except InternalError:
+                        print("Trying to handle multiple threading error")
+                        self.handle_internal_error()
+                        
+                    time.sleep(.8)
+                    
+                    
                 
+           
+            self.load_more()
+        time_ended= time.time()
         
-            div = webdriver.find_element_by_class_name("hasmore")
-            webdriver.execute_script("arguments[0].scrollTop += arguments[0].scrollHeight",div)
-
+        print ("Scraping of the letter '{}' was successfuly finished,it took it {} seconds".format(letter,time_ended-time_started))
+        self.finalize()
+        
   
         
 test=VocabularyScraper("https://www.vocabulary.com/dictionary/",dynamic=True)
 
 
-# In[39]:
-
-string.ascii_lowercase
-
-
-# In[207]:
-
-
-
-
-
-
-
-
-
-
-# In[9]:
+# In[80]:
 
 test.scraping_strategy()
 
 
-# In[ ]:
+# In[78]:
 
-
+test.finalize()
 
