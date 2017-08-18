@@ -1,6 +1,7 @@
+
 # coding: utf-8
 
-# In[8]:
+# In[1]:
 
 import re
 from selenium.webdriver import PhantomJS
@@ -14,6 +15,7 @@ import nltk
 import pymysql
 from pymysql import InternalError
 import itertools
+
 
 # In[85]:
 
@@ -55,10 +57,14 @@ class Scraper(ABC):
         cur = self.db_executer
         cur.execute("SELECT definitions,examples FROM terms WHERE term = '{}'".format(term))
         res = cur.fetchall()
+        example_alr= res[0][1]
+        defintions_alr = res[0][0]
+        de
 
         print("Already in database - ", res)
         if (len(res) > 0):
-            if definition not in  res[0][0]:
+            r
+            if definition not in res[0][0]:
                 cur.execute(
                     "UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(
                         res[0][0], definition, res[0][1], example, term))
@@ -95,7 +101,11 @@ class Scraper(ABC):
         self.db_executer = self.connect_to_database
 
 
+
+
+
 # In[82]:
+
 
 class VocabularyScraper(Scraper):
     def __init__(self, *args, **kwargs):
@@ -214,10 +224,13 @@ class VocabularyScraper(Scraper):
 
 test = VocabularyScraper("https://www.vocabulary.com/dictionary/", dynamic=True)
 
+
 # In[80]:
 
 test.scraping_strategy()
 
+
 # In[78]:
 
 test.finalize()
+
