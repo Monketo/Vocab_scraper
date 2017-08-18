@@ -198,7 +198,7 @@ class VocabularyScraper(Scraper):
             clicked = clicked | words
             for word in words:
                  term = word.get_attribute("innerHTML")
-                if term not in scraped:
+                 if term not in scraped:
               
                     word.click()
                     time.sleep(1)
