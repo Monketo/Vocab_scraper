@@ -41,7 +41,7 @@ class Scraper(ABC):
     def get_crawler(self, dynamic):
         crawler = None
         if (dynamic):
-            crawler = PhantomJS("/Users/mac/Desktop/Web scraping/phantomjs-2.1.1-macosx/bin/phantomjs")
+            crawler = PhantomJS()
         return crawler
 
     @abstractmethod
