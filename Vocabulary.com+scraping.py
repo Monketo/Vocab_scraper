@@ -59,7 +59,7 @@ class Scraper(ABC):
         res = cur.fetchall()
         examples_alr= res[0][1]
         definitions_alr = res[0][0]
-        definitions_alr = [defintion.replace("'","`") for defition in definitions_alr]
+        definitions_alr = [defin.replace("'","`") for defin in definitions_alr]
 
         print("Already in database - ", res)
         if (len(res) > 0):
