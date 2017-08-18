@@ -58,7 +58,7 @@ class Scraper(ABC):
 
         print("Already in database - ", res)
         if (len(res) > 0):
-            if not res[0][0].contains(definition):
+            if definition not in  res[0][0]:
                 cur.execute(
                     "UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(
                         res[0][0], definition, res[0][1], example, term))
