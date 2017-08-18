@@ -182,7 +182,7 @@ class VocabularyScraper(Scraper):
 
     def scraping_strategy(self):
         
-        letter = "a"
+        letter = "b"
         self.preparation(letter)
         scraped = self.temporary_memory
         webdriver = self.browser
