@@ -181,11 +181,12 @@ class VocabularyScraper(Scraper):
         webdriver.execute_script("arguments[0].scrollTop += arguments[0].scrollHeight", div)
 
     def scraping_strategy(self):
-        
+        counter=0
+       
         letter = sys.argv[1]
         self.preparation(letter)
         webdriver = self.browser
-        count=0
+        
 
         # Just to initialize for checking 
         
@@ -196,28 +197,21 @@ class VocabularyScraper(Scraper):
                 count+=20
                 time.sleep(0.2)
             except NoSuchElementException:
-                print("retrying....")
-                time.sleep(2)
-                try:
-                    self.load_more()
-                    self.browser.save_screenshot("screen.png")
-                    self.page_source = self.browser.page_source
-                except NoSuchElementException:
-                    break
+                break
 
         
 
        
         words = webdriver.find_elements_by_css_selector(".autocomplete .word")
         
-        time_started = time.time()
+        time_started1 = time.time()
 
         for word in words:
             try:
 
                 term = word.get_attribute("innerHTML")
                 
-                time_started = time.time()
+                time_started2 = time.time()
                 word.click()
                 time.sleep(1)
 
@@ -229,7 +223,7 @@ class VocabularyScraper(Scraper):
 
                 self.insert_to_database(row)
                 time_ended = time.time()
-                print("{}s  took to scrape {}".format(round(time_ended-time_started,5),term))
+                print("{}s  took to scrape {}".format(round(time_ended-time_started2,5),term))
 
             except StaleElementReferenceException:
 
@@ -251,10 +245,13 @@ class VocabularyScraper(Scraper):
             time.sleep(.5)
 
             
+            
+        if (counter<5000) :
+            self.scraping_strategy()
         time_ended = time.time()
 
-        print("Scraping of the letter '{}' was successfuly finished,it took it {} seconds".format(letter,
-                                                                                                  time_ended - time_started))
+        print("Scraping of the letter '{}' was successfuly finished, were scraped {} words , it took it {} seconds".format(letter,counter,
+                                                                                                  time_ended - time_started1))
         self.finalize()
 
 
