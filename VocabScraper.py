@@ -1,4 +1,3 @@
-
 # coding: utf-8
 
 # In[3]:
@@ -10,12 +9,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import string
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException,NoSuchElementException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoSuchElementException
 import nltk
 import pymysql
-from pymysql import InternalError,ProgrammingError
+from pymysql import InternalError, ProgrammingError
 import itertools
-
+from http.client import RemoteDisconnected
 
 # In[4]:
 
@@ -58,29 +57,30 @@ class Scraper(ABC):
         cur.execute("SELECT definitions,examples FROM terms WHERE term = '{}'".format(term))
         res = cur.fetchall()
         try:
-            examples_alr= res[0][1]
+            examples_alr = res[0][1]
             definitions_alr = res[0][0]
         except IndexError:
-            
-            examples_alr=""
-            definitions_alr=""
-        
-        if len(definitions_alr)>1:
-            definitions_alr = [defin.replace("'","`") for defin in definitions_alr]
+
+            examples_alr = ""
+            definitions_alr = ""
+
+        if len(definitions_alr) > 1:
+            definitions_alr = [defin.replace("'", "`") for defin in definitions_alr]
             definitions_alr = "".join(definitions_alr)
-            
+
         print("Already in database - ", res)
-        
+
         try:
             if (len(res) > 0):
 
                 if definition not in res[0][0]:
-
-                        cur.execute("UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(
-                           definitions_alr, definition,examples_alr, example, term))
+                    cur.execute(
+                        "UPDATE terms SET definitions = '{0} &$ {1}',examples = '{2} &$ {3}' WHERE term = '{4}'".format(
+                            definitions_alr, definition, examples_alr, example, term))
 
             else:
-                query = "INSERT into terms (term,definitions,examples) VALUES ('{0}','{1}','{2}')".format(term, definition,
+                query = "INSERT into terms (term,definitions,examples) VALUES ('{0}','{1}','{2}')".format(term,
+                                                                                                          definition,
                                                                                                           example)
                 cur.execute(query)
 
@@ -115,9 +115,6 @@ class Scraper(ABC):
         self.db_executer = self.connect_to_database
 
 
-
-
-
 # In[16]:
 
 
@@ -125,8 +122,10 @@ class VocabularyScraper(Scraper):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
+
     def preprocess_exs_defs(self, term):
         webdriver = self.browser
+
 
         term = term.replace("'", "`")
 
@@ -181,49 +180,50 @@ class VocabularyScraper(Scraper):
         webdriver.execute_script("arguments[0].scrollTop += arguments[0].scrollHeight", div)
 
     def scraping_strategy(self):
-        counter=0
-       
+        counter = 0
+        scraped = self.temporary_memory
+
         letter = sys.argv[1]
         self.preparation(letter)
         webdriver = self.browser
-        
 
-        # Just to initialize for checking 
-        
+        # Just to initialize for checking
+
         while True:
             try:
-                print(count," words")
+                print(counter, " words")
                 self.load_more()
-                count+=20
+                counter += 20
                 time.sleep(0.2)
             except NoSuchElementException:
                 break
 
-        
-
-       
         words = webdriver.find_elements_by_css_selector(".autocomplete .word")
-        
+
         time_started1 = time.time()
+
+        term = None
 
         for word in words:
             try:
 
                 term = word.get_attribute("innerHTML")
-                
-                time_started2 = time.time()
-                word.click()
-                time.sleep(1)
+                if term not in scraped:
+                    scraped.add(term)
 
-                print("Term is ", term)
-                
-                row = self.preprocess_exs_defs(term)
+                    time_started2 = time.time()
+                    word.click()
+                    time.sleep(1)
 
-                print(row)
+                    print("Term is ", term)
 
-                self.insert_to_database(row)
-                time_ended = time.time()
-                print("{}s  took to scrape {}".format(round(time_ended-time_started2,5),term))
+                    row = self.preprocess_exs_defs(term)
+
+                    print(row)
+
+                    self.insert_to_database(row)
+                    time_ended = time.time()
+                    print("{}s  took to scrape {}".format(round(time_ended - time_started2, 5), term))
 
             except StaleElementReferenceException:
 
@@ -235,28 +235,31 @@ class VocabularyScraper(Scraper):
                 print("Trying to handle multiple threading error")
                 self.handle_internal_error()
 
+            except RemoteDisconnected:
+                print("Scraped was detached , restarting process")
+                self.scraping_strategy()
 
-           # except ProgrammingError:
-           #     print("Programming error")
-           #     self.finalize()
-           #     self.db_executer = self.connect_to_database()
 
+                # except ProgrammingError:
+                #     print("Programming error")
+                #     self.finalize()
+                #     self.db_executer = self.connect_to_database()
 
             time.sleep(.5)
 
-            
-            
-        if (counter<5000) :
-            self.scraping_strategy()
+        if (counter < 5000):
+            if letter in 'pscatmdebh':
+                self.scraping_strategy()
         time_ended = time.time()
 
-        print("Scraping of the letter '{}' was successfuly finished, were scraped {} words , it took it {} seconds".format(letter,counter,
-                                                                                                  time_ended - time_started1))
+        print(
+            "Scraping of the letter '{}' was successfuly finished, were scraped {} words , it took it {} seconds".format(
+                letter, counter,
+                time_ended - time_started1))
         self.finalize()
 
 
 test = VocabularyScraper("https://www.vocabulary.com/dictionary/", dynamic=True)
-
 
 # In[17]:
 
