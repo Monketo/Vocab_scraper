@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # In[3]:
-
+import sys
 import re
 from selenium.webdriver import PhantomJS
 import time
@@ -182,7 +182,7 @@ class VocabularyScraper(Scraper):
 
     def scraping_strategy(self):
         
-        letter = "a"
+        letter = sys.argv[1]
         self.preparation(letter)
         webdriver = self.browser
         count=0
