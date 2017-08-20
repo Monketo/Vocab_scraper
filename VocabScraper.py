@@ -209,7 +209,8 @@ class VocabularyScraper(Scraper):
 
        
         words = webdriver.find_elements_by_css_selector(".autocomplete .word")
-    
+        
+        time_started = time.time()
 
         for word in words:
             try:
