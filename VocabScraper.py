@@ -8,13 +8,14 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import string
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoSuchElementException
+from selenium.common.exceptions import *
 import nltk
 import pymysql
 from pymysql import InternalError, ProgrammingError
 import itertools
 from http.client import RemoteDisconnected
+import http
+import urllib
 
 # In[4]:
 
@@ -28,6 +29,7 @@ class Scraper(ABC):
         self.db_executer = self.connect_to_database()
         self.start_link = start_link
         self.temporary_memory = set()
+        self.end_point=0
 
     def connect_to_database(self):
         global conn
@@ -182,6 +184,7 @@ class VocabularyScraper(Scraper):
     def scraping_strategy(self):
         counter = 0
         scraped = self.temporary_memory
+        point = self.end_point
 
         letter = sys.argv[1]
         self.preparation(letter)
@@ -200,11 +203,18 @@ class VocabularyScraper(Scraper):
 
         words = webdriver.find_elements_by_css_selector(".autocomplete .word")
 
+        if self.end_point == 0:
+
+             words = words[::-1]
+        else:
+            words = words[:self.end_point:-1]
+
         time_started1 = time.time()
 
         term = None
 
-        for word in words:
+        for index,word in enumerate(words):
+            
             try:
 
                 term = word.get_attribute("innerHTML")
@@ -223,7 +233,7 @@ class VocabularyScraper(Scraper):
 
                     self.insert_to_database(row)
                     time_ended = time.time()
-                    print("{}s  took to scrape {}".format(round(time_ended - time_started2, 5), term))
+                    print("{}s  took to scrape {}".format(round(time_ended - time_started2, 3), term))
 
             except StaleElementReferenceException:
 
@@ -235,9 +245,19 @@ class VocabularyScraper(Scraper):
                 print("Trying to handle multiple threading error")
                 self.handle_internal_error()
 
-            except RemoteDisconnected:
-                print("Scraped was detached , restarting process")
+
+
+            except (http.client.HTTPException,RemoteDisconnected,urllib.error.URLError,WebDriverException):
+                print("Handling connection error")
+                self.end_point = index
+                print("Scraping ended on ",index)
                 self.scraping_strategy()
+
+
+
+
+
+
 
 
                 # except ProgrammingError:
