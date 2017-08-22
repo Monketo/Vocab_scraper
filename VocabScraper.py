@@ -210,9 +210,9 @@ class VocabularyScraper(Scraper):
             words = webdriver.find_elements_by_css_selector(".autocomplete .word")
 
             if self.end_point != 0:
-                words = words[self.end_point:]
+                 words = words[self.endpoint:]
+           
 
-                
             time_started1 = time.time()
 
             term = None
@@ -256,33 +256,19 @@ class VocabularyScraper(Scraper):
             print("Scraping ended on ", index)
             self.scraping_strategy()
 
-
-
-
-
-
-
-
-
-
-
-
-
                 # except ProgrammingError:
                 #     print("Programming error")
                 #     self.finalize()
                 #     self.db_executer = self.connect_to_database()
 
-            time.sleep(.5)
+        else:
+            time_ended = time.time()
 
-
-        time_ended = time.time()
-
-        print(
-            "Scraping of the letter '{}' was successfuly finished, were scraped {} words , it took it {} seconds".format(
-                letter, counter,
-                time_ended - time_started1))
-        self.finalize()
+            print(
+                "Scraping of the letter '{}' was successfuly finished, were scraped {} words , it took it {} seconds".format(
+                    letter, counter,
+                    time_ended - time_started1))
+            self.finalize()
 
 
 test = VocabularyScraper("https://www.vocabulary.com/dictionary/", dynamic=True)
