@@ -29,7 +29,10 @@ class Scraper(ABC):
         self.db_executer = self.connect_to_database()
         self.start_link = start_link
         self.temporary_memory = set()
-        self.end_point=0
+        if(len(sys.argv)<3):
+            self.end_point=0
+        else:
+            self.end_point = sys.argv[2]
 
     def connect_to_database(self):
         global conn
@@ -166,6 +169,7 @@ class VocabularyScraper(Scraper):
         WebDriverWait(webdriver, 5).until(EC.presence_of_element_located((By.CLASS_NAME, "entry")))
 
     def preparation(self, key):
+
         found = False
         while not found:
             try:
@@ -182,76 +186,82 @@ class VocabularyScraper(Scraper):
         webdriver.execute_script("arguments[0].scrollTop += arguments[0].scrollHeight", div)
 
     def scraping_strategy(self):
-        counter = 0
-        scraped = self.temporary_memory
-        point = self.end_point
 
-        letter = sys.argv[1]
-        self.preparation(letter)
-        webdriver = self.browser
+        try:
+            counter = 0
+            scraped = self.temporary_memory
+            point = self.end_point
 
-        # Just to initialize for checking
+            letter = sys.argv[1]
+            self.preparation(letter)
+            webdriver = self.browser
 
-        while True:
-            try:
-                print(counter, " words")
-                self.load_more()
-                counter += 20
-                time.sleep(0.2)
-            except NoSuchElementException:
-                break
+            # Just to initialize for checking
 
-        words = webdriver.find_elements_by_css_selector(".autocomplete .word")
+            while True:
+                try:
+                    print(counter, " words")
+                    self.load_more()
+                    counter += 20
+                    time.sleep(0.2)
+                except NoSuchElementException:
+                    break
 
-        if self.end_point == 0:
+            words = webdriver.find_elements_by_css_selector(".autocomplete .word")
 
-             words = words[::-1]
-        else:
-            words = words[:self.end_point:-1]
+            if self.end_point == 0:
 
-        time_started1 = time.time()
+                 words = words[::-1]
+            else:
+                words = words[:self.end_point:-1]
 
-        term = None
+            time_started1 = time.time()
 
-        for index,word in enumerate(words):
-            
-            try:
+            term = None
 
-                term = word.get_attribute("innerHTML")
-                if term not in scraped:
-                    scraped.add(term)
+            for index,word in enumerate(words):
 
-                    time_started2 = time.time()
-                    word.click()
-                    time.sleep(1)
+                try:
 
-                    print("Term is ", term)
+                    term = word.get_attribute("innerHTML")
+                    if term not in scraped:
+                        scraped.add(term)
 
-                    row = self.preprocess_exs_defs(term)
+                        time_started2 = time.time()
+                        word.click()
+                        time.sleep(1)
 
-                    print(row)
+                        print("Term is ", term)
 
-                    self.insert_to_database(row)
-                    time_ended = time.time()
-                    print("{}s  took to scrape {}".format(round(time_ended - time_started2, 3), term))
+                        row = self.preprocess_exs_defs(term)
 
-            except StaleElementReferenceException:
+                        print(row)
 
-                print("Word %s was not loaded into dataset" % term)
-                continue
+                        self.insert_to_database(row)
+                        time_ended = time.time()
+                        print("{}s  took to scrape {}".format(round(time_ended - time_started2, 3), term))
 
+                except StaleElementReferenceException:
 
-            except InternalError:
-                print("Trying to handle multiple threading error")
-                self.handle_internal_error()
+                    print("Word %s was not loaded into dataset" % term)
+                    continue
 
 
+                except InternalError:
+                    print("Trying to handle multiple threading error")
+                    self.handle_internal_error()
 
-            except (http.client.HTTPException,RemoteDisconnected,urllib.error.URLError,WebDriverException):
-                print("Handling connection error")
-                self.end_point = index
-                print("Scraping ended on ",index)
-                self.scraping_strategy()
+
+        except (http.client.HTTPException, RemoteDisconnected, urllib.error.URLError, WebDriverException):
+            print("Handling connection error")
+            self.end_point = index
+            print("Scraping ended on ", index)
+            self.scraping_strategy()
+
+
+
+
+
 
 
 
@@ -267,9 +277,7 @@ class VocabularyScraper(Scraper):
 
             time.sleep(.5)
 
-        if (counter < 5000):
-            if letter in 'pscatmdebh':
-                self.scraping_strategy()
+
         time_ended = time.time()
 
         print(
