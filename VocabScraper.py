@@ -32,7 +32,7 @@ class Scraper(ABC):
         if(len(sys.argv)<3):
             self.end_point=0
         else:
-            self.end_point = sys.argv[2]
+            self.end_point = int(sys.argv[2])
 
     def connect_to_database(self):
         global conn
