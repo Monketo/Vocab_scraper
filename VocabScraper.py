@@ -209,12 +209,10 @@ class VocabularyScraper(Scraper):
 
             words = webdriver.find_elements_by_css_selector(".autocomplete .word")
 
-            if self.end_point == 0:
+            if self.end_point != 0:
+                words = words[self.end_point:]
 
-                 words = words[::-1]
-            else:
-                words = words[:self.end_point:-1]
-
+                
             time_started1 = time.time()
 
             term = None
